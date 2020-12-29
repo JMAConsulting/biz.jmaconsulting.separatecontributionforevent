@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<extension key="biz.jmaconsulting.separatecontributionforevent" type="module">
+  <file>separatecontributionforevent</file>
+  <name>Separate Contribtuion on Event Registration</name>
+  <description>>This extension allows a participant to record separate donation on event registration.</description>
+  <license>AGPL-3.0</license>
+  <maintainer>
+    <author>JMA Consulting</author>
+    <email>support@jmaconsulting.biz</email>
+  </maintainer>
+  <urls>
+    <url desc="Main Extension Page">https://github.com/JMAConsulting/biz.jmaconsulting.separatecontributionforevent</url>
+    <url desc="Documentation">https://github.com/JMAConsulting/biz.jmaconsulting.separatecontributionforevent/blob/master/README.md</url>
+    <url desc="Support">https://github.com/JMAConsulting/biz.jmaconsulting.separatecontributionforevent/issues</url>
+    <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
+  </urls>
+  <releaseDate>2020-12-28</releaseDate>
+  <version>1.0</version>
+  <develStage>alpha</develStage>
+  <compatibility>
+    <ver>5.0</ver>
+  </compatibility>
+  <comments>This is a new, undeveloped module</comments>
+  <classloader>
+    <psr4 prefix="Civi\" path="Civi"/>
+  </classloader>
+  <civix>
+    <namespace>CRM/Separatecontributionforevent</namespace>
+  </civix>
+</extension>
