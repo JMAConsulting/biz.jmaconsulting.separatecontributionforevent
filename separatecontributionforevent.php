@@ -216,12 +216,7 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
     $priceFieldEventMapping = (array) Civi::settings()->get('separate_contribution_event_price_fields');
     // if found then check that current event is configured for collecting separate donation
     if (!empty($priceFieldEventMapping)) {
-      $separatePriceFieldIDS  = [];
-      foreach ($priceFieldEventMapping as $priceFieldEventMap) {
-        if (!empty($priceFieldEventMap['event_id']) && $priceFieldEventMap['event_id'] == $form->_eventId) {
-          $separatePriceFieldIDS = $priceFieldEventMap['separate_contribution_event_price_fields_ids'];
-        }
-      }
+      $separatePriceFieldIDS  = $priceFieldEventMapping[$form->_eventId]['separate_contribution_event_price_fields_ids'] ?? [];
       if (!empty($separatePriceFieldIDS)) {
         // if found then collect the participant IDs, contribtuion which will be later used for processing separate donation
         $participantIDs = $form->getVar('_participantIDS');
