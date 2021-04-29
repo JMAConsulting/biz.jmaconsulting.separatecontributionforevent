@@ -1,4 +1,4 @@
-<div id="separate-contribtuion">
+<div id="separate-contribution">
     <table class="form-layout">
          <tr class='crm-event-manage-fee-form-block-currency'>
             <td class="label">{$form.separate_contribution_event_price_fields.label}</td>
@@ -11,7 +11,14 @@
 {literal}
 <script type="text/javascript">
 CRM.$(function($) {
-  $('#separate-contribtuion').insertAfter('#priceSet');
+  $('#crm-main-content-wrapper #separate-contribution').each(function(e) {
+    if ($(this).parent().attr('id') == 'crm-main-content-wrapper') {
+      $(this).remove();
+    }
+    else {
+      $('#separate-contribution').insertAfter('#priceSet');
+    }
+  });
 });
 </script>
 {/literal}

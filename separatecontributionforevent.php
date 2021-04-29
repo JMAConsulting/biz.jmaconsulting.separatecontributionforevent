@@ -147,12 +147,12 @@ function separatecontributionforevent_civicrm_validateForm($formName, &$fields, 
   if ($formName == 'CRM_Event_Form_ManageEvent_Fee') {
     if (!empty($form->_id) && !empty($fields['price_set_id'])) {
       $priceSetID = CRM_Core_DAO::singleValueQuery("
-      SELECT price_set_id 
+      SELECT price_set_id
       FROM civicrm_price_set_entity
       WHERE entity_table = 'civicrm_event' AND entity_id = " . $form->_id);
-      
+
       if (!empty($fields['separate_contribution_event_price_fields']) && $fields['price_set_id'] != $priceSetID) {
-        $errors['separate_contribution_event_price_fields'] = ts('Please remove the selected price field(s) before changing the price-set.'); 
+        $errors['separate_contribution_event_price_fields'] = ts('Please remove the selected price field(s) before changing the price-set.');
       }
     }
   }
@@ -163,7 +163,7 @@ function separatecontributionforevent_civicrm_buildForm($formName, &$form) {
   if ($formName == 'CRM_Event_Form_ManageEvent_Fee') {
     if (!empty($form->_id)) {
       $priceSetID = CRM_Core_DAO::singleValueQuery("
-      SELECT price_set_id 
+      SELECT price_set_id
       FROM civicrm_price_set_entity
       WHERE entity_table = 'civicrm_event' AND entity_id = " . $form->_id);
 
@@ -189,13 +189,11 @@ function separatecontributionforevent_civicrm_buildForm($formName, &$form) {
         CRM_Core_Region::instance('page-body')->add(array(
           'template' => "CRM/SeparateContributionEventPriceFields.tpl",
         ));
-        
+
         $priceFieldEventMapping = (array) Civi::settings()->get('separate_contribution_event_price_fields');
-        foreach ($priceFieldEventMapping as $priceFieldEventMap) {
-          if (!empty($priceFieldEventMap['event_id']) && $priceFieldEventMap['event_id'] == $form->_id) {
-            $form->setDefaults(['separate_contribution_event_price_fields' => $priceFieldEventMap['separate_contribution_event_price_fields_ids']]);
-          }
-        }    
+        if (!empty($priceFieldEventMapping[$form->_id]['separate_contribution_event_price_fields_ids'])) {
+          $form->setDefaults(['separate_contribution_event_price_fields' => $priceFieldEventMapping[$form->_id]['separate_contribution_event_price_fields_ids']]);
+        }
       }
     }
   }
@@ -204,20 +202,14 @@ function separatecontributionforevent_civicrm_buildForm($formName, &$form) {
 function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
   if ($formName == 'CRM_Event_Form_ManageEvent_Fee') {
     $submitValues = $form->exportValues();
+    $priceFieldEventMapping = (array) Civi::settings()->get('separate_contribution_event_price_fields');
     if (!empty($submitValues['separate_contribution_event_price_fields'])) {
-      $priceFieldEventMapping = (array) Civi::settings()->get('separate_contribution_event_price_fields');
-      if (!empty($priceFieldEventMapping)) {
-        foreach ($priceFieldEventMapping as $priceFieldEventMap) {
-          if (!empty($priceFieldEventMap['event_id']) && $priceFieldEventMap['event_id'] == $form->_id) {
-            $priceFieldEventMap['separate_contribution_event_price_fields_ids'] =  $submitValues['separate_contribution_event_price_fields'];
-          }
-        }
-      }
-      else {
-        $priceFieldEventMapping = [['event_id' => $form->_id, 'separate_contribution_event_price_fields_ids' => $submitValues['separate_contribution_event_price_fields']]];
-      }
-      Civi::settings()->set('separate_contribution_event_price_fields', $priceFieldEventMapping);
+      $priceFieldEventMapping[$form->_id] = ['separate_contribution_event_price_fields_ids' => $submitValues['separate_contribution_event_price_fields']];
     }
+    elseif (!empty($priceFieldEventMapping[$form->_id])) {
+      unset($priceFieldEventMapping[$form->_id]);
+    }
+    Civi::settings()->set('separate_contribution_event_price_fields', $priceFieldEventMapping);
   }
   if ($formName == 'CRM_Event_Form_Registration_Confirm') {
     // get list of price field ids that are meant for recording separate contribtuion
@@ -253,7 +245,7 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
           CRM_Core_DAO::executeQuery(sprintf("
             UPDATE civicrm_entity_financial_trxn SET amount = %s WHERE entity_table = 'civicrm_contribution' AND entity_id = %s AND amount = %s ",
             $contribution['total_amount'], $contribution['id'], $newContribution['total_amount']));
-          
+
           $newContribution['total_amount'] = $separateContributionAmount;
           $newContribution['tax_amount'] = $separateTaxAmount;
           $newContribution['fee_amount'] = 0.00;
@@ -273,11 +265,11 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
               $result = civicrm_api3('LineItem', 'create', ['id' => $lineItem['id'], 'entity_table' => 'civicrm_contribution', 'entity_id' => $newContributionID, 'contribution_id' => $newContributionID]);
               // TODO: there is a bug in lineitem api where entity_table is not updated thus we are using UPDATE sql to update the line-item entity_table
               CRM_Core_DAO::executeQuery("UPDATE civicrm_line_item SET entity_table = 'civicrm_contribution' WHERE id = " . $lineItem['id']);
-              
-              if (!$entityProcessed) {                  
+
+              if (!$entityProcessed) {
                 CRM_Core_DAO::executeQuery(sprintf("INSERT INTO civicrm_entity_financial_trxn (entity_table, entity_id, financial_trxn_id, amount)
-                 SELECT 'civicrm_contribution', %s, eft.financial_trxn_id, %s 
-                 FROM civicrm_entity_financial_trxn eft 
+                 SELECT 'civicrm_contribution', %s, eft.financial_trxn_id, %s
+                 FROM civicrm_entity_financial_trxn eft
                  INNER JOIN civicrm_financial_item fi ON eft.entity_id = fi.id AND eft.entity_table = 'civicrm_financial_item' AND fi.entity_id = %d AND fi.entity_table = 'civicrm_line_item'", $newContributionID, $separateContributionAmount, $lineItem['id']));
                  $entityProcessed = TRUE;
               }
