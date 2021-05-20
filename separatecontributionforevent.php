@@ -243,13 +243,12 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
 
           $newContribution['total_amount'] = $separateContributionAmount;
           $newContribution['tax_amount'] = $separateTaxAmount;
-          $newContribution['fee_amount'] = $contribution['fee_amount'];
-          $newConntribution['net_amount'] = $newContribution['total_amount'] - $contribution['fee_amount'];
           $newContribution['financial_type_id'] = $financialTypeID;
           $newContribution['trxn_id'] = $newContribution['invoice_id'] = '';
           $newContribution['skipLineItem'] = 1;
           unset($newContribution['id'], $newContribution['contribution_id']);
           $newContributionID = civicrm_api3('Contribution', 'create', $newContribution)['id'];
+          CRM_Core_DAO::executeQuery("UPDATE civicrm_contribution SET net_amount = total_amount - fee_amount WHERE id IN ($newContributionID, $contribution['id'])");
           CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_entity_financial_trxn
           SET amount = %s WHERE entity_table = 'civicrm_contribution' AND entity_id = %s ", $contribution['total_amount'], $contribution['id']));
 
