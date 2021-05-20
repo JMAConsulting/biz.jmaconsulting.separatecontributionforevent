@@ -243,7 +243,8 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
 
           $newContribution['total_amount'] = $separateContributionAmount;
           $newContribution['tax_amount'] = $separateTaxAmount;
-          $newContribution['fee_amount'] = 0.00;
+          $newContribution['fee_amount'] = $contribution['fee_amount'];
+          $newConntribution['net_amount'] = $newContribution['total_amount'] - $contribution['fee_amount'];
           $newContribution['financial_type_id'] = $financialTypeID;
           $newContribution['trxn_id'] = $newContribution['invoice_id'] = '';
           $newContribution['skipLineItem'] = 1;
