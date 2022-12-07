@@ -236,11 +236,15 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
             }
           }
           $newContribution = $contribution;
-          CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_contribution SET total_amount = %s WHERE id = %d", round($newContribution['total_amount'] - $separateContributionAmount, 2), $contribution['id']));
-          CRM_Core_DAO::executeQuery(sprintf("
-            UPDATE civicrm_entity_financial_trxn SET amount = %s WHERE entity_table = 'civicrm_contribution' AND entity_id = %s AND amount = %s ",
-            $contribution['total_amount'], $contribution['id'], $newContribution['total_amount']));
+          $updatedContributionAmount = round($newContribution['total_amount'] - $separateContributionAmount, 2);
+          CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_contribution SET total_amount = %s WHERE id = %d", $updatedContributionAmount, $contribution['id']));
 
+          CRM_Core_DAO::executeQuery(sprintf("
+            UPDATE civicrm_entity_financial_trxn SET amount = %s WHERE entity_table = 'civicrm_contribution' AND entity_id = %s",
+            $updatedContributionAmount, $contribution['id']));
+          CRM_Core_DAO::executeQuery(sprintf(" UPDATE civicrm_financial_trxn ft
+            INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id AND eft.entity_table = 'civicrm_contribution' AND eft.entity_id = %s
+            SET ft.total_amount = %s, ft.fee_amount = %s", $contribution['id'], $updatedContributionAmount, $updatedContributionAmount));
           $newContribution['total_amount'] = $separateContributionAmount;
           $newContribution['tax_amount'] = $separateTaxAmount;
           $newContribution['financial_type_id'] = $financialTypeID;
@@ -252,6 +256,9 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
           CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_entity_financial_trxn
           SET amount = %s WHERE entity_table = 'civicrm_contribution' AND entity_id = %s ", $contribution['total_amount'], $contribution['id']));
 
+          $financialTrxnID = CRM_Core_DAO::singleValueQuery('SELECT financial_trxn_id FROM civicrm_entity_financial_trxn WHERE entity_table = \'civicrm_contribution\' AND entity_id = %s ', $newContributionID);
+          civicrm_api3('FinancialTrxn', 'create', ['id' => $financialTrxnID, 'trxn_id' => $contribution['trxn_id']]);
+
           $entityProcessed = FALSE;
           foreach ($lineItems as $lineItem) {
             if (in_array($lineItem['price_field_id'], $separatePriceFieldIDS)) {
@@ -260,14 +267,9 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
               $result = civicrm_api3('LineItem', 'create', ['id' => $lineItem['id'], 'entity_table' => 'civicrm_contribution', 'entity_id' => $newContributionID, 'contribution_id' => $newContributionID]);
               // TODO: there is a bug in lineitem api where entity_table is not updated thus we are using UPDATE sql to update the line-item entity_table
               CRM_Core_DAO::executeQuery("UPDATE civicrm_line_item SET entity_table = 'civicrm_contribution' WHERE id = " . $lineItem['id']);
-
-              if (!$entityProcessed) {
-                CRM_Core_DAO::executeQuery(sprintf("INSERT INTO civicrm_entity_financial_trxn (entity_table, entity_id, financial_trxn_id, amount)
-                 SELECT 'civicrm_contribution', %s, eft.financial_trxn_id, %s
-                 FROM civicrm_entity_financial_trxn eft
-                 INNER JOIN civicrm_financial_item fi ON eft.entity_id = fi.id AND eft.entity_table = 'civicrm_financial_item' AND fi.entity_id = %d AND fi.entity_table = 'civicrm_line_item'", $newContributionID, $separateContributionAmount, $lineItem['id']));
-                 $entityProcessed = TRUE;
-              }
+              CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_entity_financial_trxn eft
+                INNER JOIN civicrm_financial_item fi ON fi.id = eft.entity_id AND eft.entity_table = 'civicrm_financial_item'
+                SET financial_trxn_id = %s WHERE fi.entity_table = 'civicrm_line_item' WHERE fi.entity_id = ", $financialTrxnID,  $lineItem['id']));
             }
           }
         }
