@@ -175,7 +175,7 @@ function separatecontributionforevent_civicrm_buildForm($formName, &$form) {
       ]);
       $isQuickConfig = $result['values'][0]['is_quick_config'];
 
-      if (!$isQuickConfig) {
+      if (!$isQuickConfig && !empty($result['values'][0]['api.PriceField.get']['values'])) {
         $options = [];
         foreach ($result['values'][0]['api.PriceField.get']['values'] as $priceField) {
           $options[$priceField['id']] = $priceField['label'];
