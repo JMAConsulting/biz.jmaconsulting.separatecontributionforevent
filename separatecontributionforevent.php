@@ -225,7 +225,7 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
         if (!empty($contributionID)) {
           $contribution = civicrm_api3('contribution', 'getsingle', ['id' => $contributionID]);
           // fetch the line-items associated withe particpant record which is used to calculate the separate donation total amount and tax amount(if any)
-          $lineItems = civicrm_api3('LineItem', 'get', ['entity_table' => 'civicrm_participant', 'entity_id' => ['IN' => $participantIDs], 'return' => ['entity_id', 'price_field_id', 'line_total', 'tax_amount', 'financial_type_id']])['values'];
+          $lineItems = civicrm_api3('LineItem', 'get', ['entity_table' => 'civicrm_participant', 'entity_id' => ['IN' => $participantIDs], 'return' => ['label', 'entity_id', 'price_field_id', 'line_total', 'tax_amount', 'financial_type_id', 'qty']])['values'];
           $separateContributionAmount = $separateTaxAmount = 0;
           $financialTypeID = NULL;
           foreach ($lineItems as $lineItem) {
@@ -256,22 +256,30 @@ function separatecontributionforevent_civicrm_postProcess($formName, &$form) {
           CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_entity_financial_trxn
           SET amount = %s WHERE entity_table = 'civicrm_contribution' AND entity_id = %s ", $contribution['total_amount'], $contribution['id']));
 
-          $financialTrxnID = CRM_Core_DAO::singleValueQuery('SELECT financial_trxn_id FROM civicrm_entity_financial_trxn WHERE entity_table = \'civicrm_contribution\' AND entity_id = %s ', $newContributionID);
+          $financialTrxnID = CRM_Core_DAO::singleValueQuery(sprintf('SELECT financial_trxn_id FROM civicrm_entity_financial_trxn WHERE entity_table = \'civicrm_contribution\' AND entity_id = %s ', $newContributionID));
           civicrm_api3('FinancialTrxn', 'create', ['id' => $financialTrxnID, 'trxn_id' => $contribution['trxn_id']]);
 
           $entityProcessed = FALSE;
+          $feeLevel = $participant = $feeAmount = NULL;
           foreach ($lineItems as $lineItem) {
             if (in_array($lineItem['price_field_id'], $separatePriceFieldIDS)) {
-              $participant = civicrm_api3('Participant', 'getsingle', ['id' => $lineItem['entity_id']]);
-              civicrm_api3('Participant', 'create', array_merge($participant, ['participant_fee_amount' => $participant['participant_fee_amount'] - $lineItem['line_total']]));
+              $participant = $participant ?: civicrm_api3('Participant', 'getsingle', ['id' => $lineItem['entity_id']]);
+              $feeLevel = $feeLevel ?: $participant['participant_fee_level'];
+              $feeAmount = $feeAmount ?: $participant['participant_fee_amount'];
+              $selectedFeeLevel = $lineItem['label'] . ' - ' . (int) $lineItem['qty'];
+              if (in_array($selectedFeeLevel, $feeLevel)) {
+                unset($feeLevel[array_search($selectedFeeLevel, $feeLevel)]);
+              }
+              $feeAmount -= $lineItem['line_total'];
               $result = civicrm_api3('LineItem', 'create', ['id' => $lineItem['id'], 'entity_table' => 'civicrm_contribution', 'entity_id' => $newContributionID, 'contribution_id' => $newContributionID]);
               // TODO: there is a bug in lineitem api where entity_table is not updated thus we are using UPDATE sql to update the line-item entity_table
               CRM_Core_DAO::executeQuery("UPDATE civicrm_line_item SET entity_table = 'civicrm_contribution' WHERE id = " . $lineItem['id']);
               CRM_Core_DAO::executeQuery(sprintf("UPDATE civicrm_entity_financial_trxn eft
                 INNER JOIN civicrm_financial_item fi ON fi.id = eft.entity_id AND eft.entity_table = 'civicrm_financial_item'
-                SET financial_trxn_id = %s WHERE fi.entity_table = 'civicrm_line_item' WHERE fi.entity_id = ", $financialTrxnID,  $lineItem['id']));
+                SET financial_trxn_id = %s WHERE fi.entity_table = 'civicrm_line_item' AND fi.entity_id = %s ", $financialTrxnID,  $lineItem['id']));
             }
           }
+          civicrm_api3('Participant', 'create', array_merge($participant, ['participant_fee_amount' => $feeAmount, 'fee_level' => $feeLevel]));
         }
 
       }
